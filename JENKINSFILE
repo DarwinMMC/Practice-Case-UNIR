@@ -1,52 +1,50 @@
-pipeline {
-    agent any
-
-     stages {
-        stage('Get Code') {
-            steps {
-                // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
+pipeline{
+    agent {label 'ubuntu'}
+    stages{
+        stage('clone repository'){
+            steps{
+                sh '''
+                    git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
+                '''
             }
-        }
-    
-        stage('Build') {
-           steps {
-              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-	          echo WORKSPACE
-              bat 'dir'
-           }
         }
         
-        stage('Unit') {
-            steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    bat '''
-                        set PYTHONPATH=%WORKSPACE%
-                        pytest --junitxml=result-unit.xml test\\unit
+        stage('build code'){
+            steps{
+                sh 'echo "Building app"'
+            }
+        }
+        
+    
+        stage('Unit'){
+            steps{
+                 sh '''
+                    export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                    pytest --junitxml=result-unit.xml Practice-Case-UNIR/test/unit/'''
+            }
+        }
+  
+ 
+        stage('Unit api'){
+            steps{
+              
+                 sh '''
+                    export FLASK_APP=$WORKSPACE/Practice-Case-UNIR/app/api.py
+                    export FLASK_ENV=develoment
+                    flask run > flask.log 2>&1 &
+                    export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                    java -jar /home/darwin/wiremock-standalone-3.3.1.jar --port 9090 --root-dir /home/darwin/workspace/Caso-Practico-1-A/pipeline/Practice-Case-UNIR/test/wiremock/ > wiremock.log 2>&1 &
+
+                    pytest --junitxml=result-rest.xml Practice-Case-UNIR/test/rest/
+
                     '''
-               }
             }
-        }   
-
-
-        stage('Rest') {
-            steps {
-                bat '''
-                    set FLASK_APP=app\\api.py
-                    set FLASK_ENV=development
-                    start flask run
-                    start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir C:\\Unir\\Ejercicios\\wiremock
-                    set PYTHONPATH=%WORKSPACE%
-                    pytest --junitxml=result-rest.xml test\\rest
-                '''
+        }
+   
+        stage('result'){
+            steps{
+                junit 'result*.xml'
             }    
-        }
-
-        stage('Results') {
-            steps {
-                junit 'result*.xml' 
-            }
-        }
-     
+        }      
     }
 }
