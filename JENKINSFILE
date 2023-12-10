@@ -27,9 +27,7 @@ pipeline{
                     export FLASK_ENV=develoment
                     export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
                     flask run > flask.txt 2>&1 & 
-                    sleep 3
                     java -jar /wiremock-standalone-3.3.1.jar --port 9090 --root-dir $WORKSPACE/Practice-Case-UNIR/test/wiremock/ > wiremock.txt 2>&1 &
-                    sleep 3
                     pytest --junitxml=result-rest.xml Practice-Case-UNIR/test/rest/
                     '''
             }
