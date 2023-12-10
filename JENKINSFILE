@@ -3,8 +3,8 @@ pipeline{
     stages{
         stage('clone repository'){
             steps{
+                 deleteDir()
                  sh '''
-                    deleteDir()
                     git clone --branch feature_fix_racecond https://github.com/DarwinMMC/Practice-Case-UNIR.git
                  '''
             }
