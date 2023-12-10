@@ -4,7 +4,7 @@ pipeline{
         stage('clone repository'){
             steps{
                  sh '''
-                    git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
+                    git clone --branch feature_fix_racecond https://github.com/DarwinMMC/Practice-Case-UNIR.git
                  '''
             }
         }
