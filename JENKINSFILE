@@ -3,48 +3,41 @@ pipeline{
     stages{
         stage('clone repository'){
             steps{
-                sh '''
+                 sh '''
                     git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
-                '''
+                 '''
             }
         }
-        
         stage('build code'){
             steps{
-                sh 'echo "Building app"'
+                 sh 'echo "Building app"'
             }
         }
-        
-    
         stage('Unit'){
-            steps{
+            steps{   
                  sh '''
                     export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
                     pytest --junitxml=result-unit.xml Practice-Case-UNIR/test/unit/'''
             }
         }
-  
- 
         stage('Unit api'){
-            steps{
-              
+            steps{     
                  sh '''
                     export FLASK_APP=$WORKSPACE/Practice-Case-UNIR/app/api.py
                     export FLASK_ENV=develoment
-                    flask run > flask.log 2>&1 &
                     export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
-                    java -jar /home/darwin/wiremock-standalone-3.3.1.jar --port 9090 --root-dir /home/darwin/workspace/Caso-Practico-1-A/pipeline/Practice-Case-UNIR/test/wiremock/ > wiremock.log 2>&1 &
-
+                    flask run > flask.txt 2>&1 & 
+                    sleep 3
+                    java -jar /wiremock-standalone-3.3.1.jar --port 9090 --root-dir $WORKSPACE/Practice-Case-UNIR/test/wiremock/ > wiremock.txt 2>&1 &
+                    sleep 3
                     pytest --junitxml=result-rest.xml Practice-Case-UNIR/test/rest/
-
                     '''
             }
         }
-   
         stage('result'){
             steps{
                 junit 'result*.xml'
             }    
-        }      
+        }
     }
 }
