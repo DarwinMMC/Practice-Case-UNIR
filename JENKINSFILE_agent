@@ -1,0 +1,78 @@
+pipeline{
+    agent none 
+    stages{
+        stage('clone repository'){
+            agent {label 'git'}
+            steps{
+                deleteDir()
+
+                 sh '''
+                    whoami
+                    hostname
+                    git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
+                    '''
+                stash(name:'workspace_data') 
+            }
+        
+        }
+        stage('build code'){
+            agent {label 'ubuntu'}
+            steps{
+
+                sh '''
+                    whoami
+                    hostname
+                    echo "Building app"
+                    
+                    '''
+            }
+        }
+        
+        stage('Test'){
+            parallel{
+                stage('Unit'){
+                    agent {label 'pytest'}
+                    steps{   
+                        unstash 'workspace_data'
+                         sh '''
+                            whoami
+                            hostname
+                            export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                            pytest --junitxml=result-unit.xml Practice-Case-UNIR/test/unit/'''
+                            
+                        stash(name:'workspace_data')
+                    }
+
+                }
+                stage('Unit api'){
+                    agent {label 'flask && wiremock'}
+                    steps{     
+                        unstash 'workspace_data'
+                        sh '''
+                            whoami
+                            hostname
+                            export FLASK_APP=$WORKSPACE/Practice-Case-UNIR/app/api.py
+                            export FLASK_ENV=develoment
+                            export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                            flask run > flask.txt 2>&1 & 
+                            sleep 3
+                            java -jar /wiremock-standalone-3.3.1.jar --port 9090 --root-dir $WORKSPACE/Practice-Case-UNIR/test/wiremock/ > wiremock.txt 2>&1 &
+                            sleep 3
+                            pytest --junitxml=result-rest.xml Practice-Case-UNIR/test/rest/
+                        '''
+                         stash(name:'workspace_data')
+                    }
+                }  
+            }
+  
+        }
+   
+        stage('result'){
+            agent {label 'ubuntu'}
+            steps{
+                unstash 'workspace_data'
+                junit 'result*.xml'
+            }    
+        }
+    }
+}
