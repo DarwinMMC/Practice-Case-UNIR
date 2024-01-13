@@ -4,38 +4,81 @@ pipeline{
         stage('clone repository'){
             steps{
                  sh '''
-                    git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
+                  rm -rf Practice-Case-UNIR
+                  git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
                  '''
-            }
-        }
-        stage('build code'){
-            steps{
-                 sh 'echo "Building app"'
             }
         }
         stage('Unit'){
             steps{   
                  sh '''
                     export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
-                    pytest --junitxml=result-unit.xml Practice-Case-UNIR/test/unit/'''
+                    export PATH=$PATH:/home/darwin/.local/bin
+                    coverage run --source=app --omit=/home/darwin/workspace/CASO-PRACTICO-B/pipeline/Practice-Case-UNIR/app/__init__.py,/home/darwin/workspace/CASO-PRACTICO-B/pipeline/Practice-Case-UNIR/app/api.py -m  pytest --junitxml=result-unit.xml $WORKSPACE/Practice-Case-UNIR/test/unit
+                    '''
+                    junit 'result-unit.xml'
             }
         }
-        stage('Unit api'){
+        stage('Rest'){
             steps{     
                  sh '''
                     export FLASK_APP=$WORKSPACE/Practice-Case-UNIR/app/api.py
                     export FLASK_ENV=develoment
                     export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                    export PATH=$PATH:/home/darwin/.local/bin
                     flask run > flask.txt 2>&1 & 
+                    sleep 3
                     java -jar /wiremock-standalone-3.3.1.jar --port 9090 --root-dir $WORKSPACE/Practice-Case-UNIR/test/wiremock/ > wiremock.txt 2>&1 &
+                    sleep 3
                     pytest --junitxml=result-rest.xml Practice-Case-UNIR/test/rest/
                     '''
+                    junit 'result-rest.xml'
             }
         }
-        stage('result'){
-            steps{
-                junit 'result*.xml'
-            }    
+          stage('Static'){
+            steps{   
+                 sh '''
+                   export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                   export PATH=$PATH:/home/darwin/.local/bin
+                   flake8 --format=pylint --exit-zero app >flake8.out
+                    ''' 
+                    recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], qualityGates: [[threshold:8, type: 'TOTAL', unstable: true], [threshold: 10, type: 'TOTAL', unstable: false]]
+            }
         }
+    
+         stage('Security test'){
+            steps{   
+                 sh '''
+                    export PATH=$PATH:/home/darwin/.local/bin
+                    export PATH=$PATH:/home/darwin/.local/bin
+                    bandit --exit-zero -r . -f custom -o bandit.out --severity-level medium --msg-template "{abspath}:{line}: {severity}: {test_id}: {msg}"
+                    ''' 
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[threshold:2, type: 'TOTAL', unstable: true], [threshold: 14, type: 'TOTAL', unstable: false]]
+            }
+        }
+        
+        stage('Performance'){
+            steps{   
+                 sh '''
+                    export FLASK_APP=$WORKSPACE/Practice-Case-UNIR/app/api.py
+                    export FLASK_ENV=develoment
+                    export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                    flask run > flask.txt 2>&1 & 
+                    sleep 3
+                    java -jar /home/darwin/apache-jmeter-5.6.3/bin/ApacheJMeter.jar -n -t /home/darwin/test.jmx -f -l flask.jtl
+                    ''' 
+                   perfReport sourceDataFiles: 'flask.jtl'
+            }
+           }
+           stage('Coverage'){
+            steps{   
+                 sh '''
+                    export PYTHONPATH=$WORKSPACE/Practice-Case-UNIR/
+                    export PATH=$PATH:/home/darwin/.local/bin
+                    coverage xml
+                    ''' 
+                    cobertura coberturaReportFile: 'coverage.xml',conditionalCoverageTargets: '100,85,95',lineCoverageTargets: '100,80,90'
+            }
+           }
     }
 }
