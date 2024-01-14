@@ -4,7 +4,7 @@ pipeline{
         stage('clone repository'){
             steps{
                  sh '''
-                  rm -rf Practice-Case-UNIR
+                  deleteDir()
                   git clone https://github.com/DarwinMMC/Practice-Case-UNIR.git
                  '''
             }
